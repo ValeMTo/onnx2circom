@@ -2,3 +2,9 @@ snarkjs_example
 
 *.h5
 *.onnx
+onnx2keras/
+
+keras2circom/
+
+cifar-10-batches-py/
+
