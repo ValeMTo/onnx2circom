@@ -34,7 +34,7 @@ needed_next = [
 ]
 
 class Model:
-    onnx: ModelProto
+    onnx_model: ModelProto
 
     def __init__(self, filename: str):
         ''' Load a onnx model from a file. '''
@@ -50,7 +50,7 @@ class Model:
     def create_circuit():
         circuit = Circuit()
         previous_node = ''
-        for index, node in enumerate(model.graph.node):
+        for index, node in enumerate(self.onnx_model.graph.node):
             if previous_node not in needed_next:
                 if check_available_ops(node.op_type):
                         if node.op_type in needed_next:
@@ -59,5 +59,4 @@ class Model:
                         else:
                             circuit.add_component(handler.transpile_node(node))
             previous_node = node.op_type
-        
         return circuit
