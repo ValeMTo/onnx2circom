@@ -1,3 +1,5 @@
+# Ref: https://github.com/socathie/keras2circom/blob/main/keras2circom/model.py
+
 from onnx import load
 from onnx.onnx_ml_pb2 import ModelProto
 from keras2circom.keras2circom.circom import Circuit
@@ -29,10 +31,6 @@ skip_ops =  [
     'ReduceProd'
 ]
 
-needed_next = [
-    "MatMul",
-]
-
 class Model:
     onnx_model: ModelProto
 
@@ -46,17 +44,17 @@ class Model:
         elif op in skip_ops:
             return False
         raise NotImplementedError(f'Unsupported op: {op}')
-    
+
     def create_circuit(self):
         circuit = Circuit()
-        previous_node = ''
-        for index, node in enumerate(self.onnx_model.graph.node):
-            if previous_node not in needed_next:
-                if check_available_ops(node.op_type):
-                        if node.op_type in needed_next:
-                            circuit.add_component(handler.transpile_two_nodes(node, self.onnx_model.graph.node[index + 1]))
 
-                        else:
-                            circuit.add_component(handler.transpile_node(node))
-            previous_node = node.op_type
+        input_shape = handler.calculate_first_input(self.model.graph.input)
+
+        for index, node in enumerate(self.onnx_model.graph.node):
+            if Model.check_available_ops(node.op_type):
+
+                component, input_shape = handler.transpile_node(input_shape, index, self.model)
+
+                circuit.add_component(component)
+
         return circuit
