@@ -54,7 +54,7 @@ class Model:
             if previous_node not in needed_next:
                 if check_available_ops(node.op_type):
                         if node.op_type in needed_next:
-                            circuit.add_component(handler.transpile_node(node, model.graph.node[index + 1]))
+                            circuit.add_component(handler.transpile_two_nodes(node, self.onnx_model.graph.node[index + 1]))
 
                         else:
                             circuit.add_component(handler.transpile_node(node))
