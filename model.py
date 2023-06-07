@@ -47,7 +47,7 @@ class Model:
             return False
         raise NotImplementedError(f'Unsupported op: {op}')
     
-    def create_circuit():
+    def create_circuit(self):
         circuit = Circuit()
         previous_node = ''
         for index, node in enumerate(self.onnx_model.graph.node):
