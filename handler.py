@@ -40,6 +40,7 @@ def init():
     dir_parse('keras2circom/node_modules/circomlib-ml/circuits/', skips=['util.circom', 'circomlib-matrix', 'circomlib', 'crypto'])
 
 def check_available_ops(op: str, name: str) -> bool:
+    ''' Check if the operation is supported by circom. '''
     if op in supported_ops:
         if op == 'Reshape':
             if 'flatten' in name.lower():
@@ -59,6 +60,7 @@ def check_available_ops(op: str, name: str) -> bool:
     raise NotImplementedError(f'Unsupported op: {op} - Circom component not found.')
 
 def transpile(model: ModelProto):
+    ''' Transpile a onnx model to a CIRCOM circuit.'''
     init()
     circuit = Circuit()
         
@@ -91,7 +93,7 @@ def transpile_node(input_shape: tuple, output_shape: tuple, node: NodeProto, wei
         kernel_shape = get_kernel_shape(node)
         strides_shape = get_strides_shape(node)
         padding = get_padding(node)
-        filters = get_filters(node, weights)
+        filters = get_filters(weights)
         dilation  = get_dilation_rate(node)
         group = get_groups(node)
         return transpile_Conv(node_name, input_shape, output_shape, weights, kernel_shape, strides_shape, filters,  padding, dilation, group)
@@ -122,16 +124,19 @@ def transpile_node(input_shape: tuple, output_shape: tuple, node: NodeProto, wei
         return transpile_Softmax(node_name, input_shape, output_shape)
 
 def calculate_first_input(model_input): #model.graph.input[0]
+    ''' Calculate the input shape of the first layer. '''
     input_shape = [dim.dim_value for dim in model_input.type.tensor_type.shape.dim][1:]
     return tuple(input_shape)
 
 def extract_node_name(node: NodeProto):
+    ''' Extract the name of a node: model/layer, when model name is available '''
     output_name = str(node.output[0])
     output_names = output_name.split('/')
     output_name = '/'.join(output_names[:2])
     return output_name
 
 def get_padding(node: NodeProto):
+    ''' Get the padding type of a node.'''
     padding = 'valid'
     for attribute in node.attribute:
         if 'pad' in attribute.name.lower():
@@ -141,6 +146,7 @@ def get_padding(node: NodeProto):
     return padding
         
 def get_dilation_rate(node: NodeProto):
+    ''' Get the dilation rate of a node.'''
     for attribute in node.attribute:
         if attribute.name.lower() == 'dilations':
             dilatations = (attribute.ints[0], attribute.ints[1])
@@ -150,6 +156,7 @@ def get_dilation_rate(node: NodeProto):
     raise AttributeError('Dilatations not found')
 
 def get_groups(node: NodeProto):
+    ''' Get the groups of a node.'''
     for attribute in node.attribute:
         if attribute.name.lower() == 'group':
             groups = attribute.i
@@ -159,6 +166,7 @@ def get_groups(node: NodeProto):
     raise AttributeError('Groups not found')
 
 def get_kernel_shape(node: NodeProto):
+    ''' Get the kernel shape of a node.'''
     for attribute in node.attribute:
         if attribute.name == 'kernel_shape':
             kernel_shape = (attribute.ints[0], attribute.ints[1])
@@ -168,6 +176,7 @@ def get_kernel_shape(node: NodeProto):
     raise AttributeError('Kernel shape not found')
     
 def get_strides_shape(node: NodeProto):
+    ''' Get the strides shape of a node.'''
     for attribute in node.attribute:
         if attribute.name.lower() == 'strides':
             stride_shape = (attribute.ints[0], attribute.ints[1])
@@ -176,7 +185,8 @@ def get_strides_shape(node: NodeProto):
         
     raise AttributeError('Stride shape not found')
 
-def get_filters(node: NodeProto, weights: dict):
+def get_filters(weights: dict):
+    ''' Get the number of filters of a node.'''
     for key, value in weights.items():
         if 'BiasAdd' in key:
             nChannels = len(value)
@@ -186,13 +196,13 @@ def get_filters(node: NodeProto, weights: dict):
     
 
 def calculate_output(input_shape: tuple, node: NodeProto, weights: dict, model: ModelProto):
-
+    ''' Calculate the output shape of a node. '''
     if node.op_type == "Conv":
         
         input_height, input_width = input_shape[:-1]
         filter_height, filter_width = get_kernel_shape(node)
         strides = get_strides_shape(node)[0]
-        nChannels = get_filters(node, weights)
+        nChannels = get_filters(weights)
 
         # Padding always valid: no padding
         output_height = (input_height - filter_height) / strides + 1
@@ -237,6 +247,7 @@ def calculate_output(input_shape: tuple, node: NodeProto, weights: dict, model: 
     return input_shape
 
 def get_epsilon(node: NodeProto):
+    ''' Get the epsilon of a node.'''
     for attribute in node.attribute:
         if attribute.name == 'epsilon':
             return attribute.f
@@ -244,6 +255,7 @@ def get_epsilon(node: NodeProto):
     raise AttributeError('Epsilon not found')
 
 def get_weights(model: ModelProto):
+    ''' Get all weights of a model. '''
     onnx_weights = model.graph.initializer
     weights = {}
     for onnx_w in onnx_weights:
@@ -284,7 +296,7 @@ def get_layer_weights(name: str, weights: dict):
 
 
 def transpile_Conv(node_name: str, input_shape: tuple, output_shape: tuple, weights: dict, kernel_size: tuple, strides: tuple, filters: int, padding: str, dilation_rate: tuple, groups: int):
-
+    ''' Transpile a Conv2D layer. '''
     if padding != 'valid':
         raise NotImplementedError('Only padding="valid" is supported')
     if strides[0] != strides[1]:
@@ -336,6 +348,7 @@ def transpile_Conv(node_name: str, input_shape: tuple, output_shape: tuple, weig
     return conv
 
 def transpile_BatchNormalization(node_name: str, input_shape: tuple, output_shape: tuple, weights: dict, epsilon: float):
+    ''' Transpile a BatchNormalization2D layer. '''
     print('input_shape', input_shape)
     if len(input_shape) != 3:
         raise NotImplementedError('Only 2D inputs are supported')
@@ -371,6 +384,7 @@ def transpile_BatchNormalization(node_name: str, input_shape: tuple, output_shap
 
 
 def transpile_AveragePool(node_name: str, input_shape: tuple, output_shape: tuple, pool_size: tuple, strides: tuple, padding: str):
+    ''' Transpile a AveragePooling2D layer.'''
     if padding != 'valid':
         raise NotImplementedError('Only padding="valid" is supported')
     if pool_size[0] != pool_size[1]:
@@ -392,6 +406,7 @@ def transpile_AveragePool(node_name: str, input_shape: tuple, output_shape: tupl
     return avg_pooling
 
 def transpile_MaxPool(node_name: str, input_shape: tuple, output_shape: tuple, pool_size: tuple, strides: tuple, padding: str):
+    ''' Transpile a MaxPooling2D layer.'''
     if padding != 'valid':
         raise NotImplementedError('Only padding="valid" is supported')
     if pool_size[0] != pool_size[1]:
@@ -412,6 +427,7 @@ def transpile_MaxPool(node_name: str, input_shape: tuple, output_shape: tuple, p
     return max_pooling
 
 def transpile_GlobalMaxPool(node_name: str, input_shape: tuple, output_shape: tuple):
+    ''' Transpile a GlobalMaxPooling2D layer.'''
     global_max_pooling = Component(node_name, templates['GlobalMaxPooling2D'], [
         Signal('in', input_shape),
         ],[Signal('out', output_shape)],{
@@ -423,6 +439,7 @@ def transpile_GlobalMaxPool(node_name: str, input_shape: tuple, output_shape: tu
     return global_max_pooling
 
 def transpile_GlobalAveragePool(node_name: str, input_shape: tuple, output_shape: tuple):
+    ''' Transpile a GlobalAveragePooling2D layer.'''
     global_average_pooling = Component(node_name, 
         templates['GlobalAveragePooling2D'], [
         Signal('in', input_shape),
@@ -436,6 +453,7 @@ def transpile_GlobalAveragePool(node_name: str, input_shape: tuple, output_shape
     return global_average_pooling
 
 def transpile_Softmax(node_name: str, input_shape: tuple, output_shape: tuple):
+    ''' Transpile a Softmax layer.'''
     softmax = Component(node_name+'_softmax', 
         templates['ArgMax'], 
         [Signal('in', input_shape)], 
@@ -445,7 +463,7 @@ def transpile_Softmax(node_name: str, input_shape: tuple, output_shape: tuple):
     return softmax
 
 def transpile_MatMul(node_name: str, input_shape: tuple, output_shape: tuple, weights: dict):
-
+    ''' Transpile a Dense layer.'''
     if len(weights) != 2:
         raise AttributeError('Number of weights arrays is not equal 2 for the dense layer')
 
@@ -470,6 +488,7 @@ def transpile_MatMul(node_name: str, input_shape: tuple, output_shape: tuple, we
     return dense
 
 def transpile_Relu(node_name: str, input_shape: tuple, output_shape: tuple):
+    ''' Transpile a ReLU layer.'''
     activation = Component(node_name+'_re_lu', templates['ReLU'], 
         [Signal('in', input_shape)], 
         [Signal('out', output_shape)])
@@ -477,6 +496,7 @@ def transpile_Relu(node_name: str, input_shape: tuple, output_shape: tuple):
     return activation
 
 def transpile_Flatten(node_name: str, input_shape: tuple, output_shape: tuple):
+    ''' Transpile a Flatten layer.'''
     if len(input_shape) != 3:
         raise NotImplementedError('Only 2D inputs are supported')
 
