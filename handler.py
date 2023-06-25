@@ -72,22 +72,21 @@ def transpile(model: ModelProto):
         if check_available_ops(node.op_type, node.name):
             node_weights = get_layer_weights(extract_node_name(node), all_weights)
             output_shape = calculate_output(input_shape, node, node_weights, model)
-            print('input:',input_shape, 'ouput:', output_shape)
             component = transpile_node(input_shape, output_shape, node, node_weights)
 
             circuit.add_component(component)
             input_shape = output_shape
+        
+
     
     return circuit
 
-def transpile_node(input_shape: tuple, output_shape: tuple, node: NodeProto, weights: dict):
+def transpile_node(input_shape: tuple, output_shape: tuple, node: NodeProto, weights: dict,):
     '''  Transpile a node to a CIRCOM component.'''
-    print('Transpiling node: ',  extract_node_name(node))
     if len(extract_node_name(node).split('/'))>1:
         node_name = extract_node_name(node).split('/')[1]
     else:
         node_name = extract_node_name(node)
-    print(node_name)
 
     if node.op_type == 'Conv':
         kernel_shape = get_kernel_shape(node)
@@ -142,7 +141,6 @@ def get_padding(node: NodeProto):
         if 'pad' in attribute.name.lower():
             if 'same' in attribute.s:
                 padding = 'same'
-            print('Padding: ', padding)
     return padding
         
 def get_dilation_rate(node: NodeProto):
@@ -150,7 +148,6 @@ def get_dilation_rate(node: NodeProto):
     for attribute in node.attribute:
         if attribute.name.lower() == 'dilations':
             dilatations = (attribute.ints[0], attribute.ints[1])
-            print('Dilatations: ', dilatations)
             return dilatations
         
     raise AttributeError('Dilatations not found')
@@ -160,7 +157,6 @@ def get_groups(node: NodeProto):
     for attribute in node.attribute:
         if attribute.name.lower() == 'group':
             groups = attribute.i
-            print('Groups: ', groups)
             return groups
         
     raise AttributeError('Groups not found')
@@ -170,7 +166,6 @@ def get_kernel_shape(node: NodeProto):
     for attribute in node.attribute:
         if attribute.name == 'kernel_shape':
             kernel_shape = (attribute.ints[0], attribute.ints[1])
-            print('Kernel shape: ', kernel_shape)
             return kernel_shape
         
     raise AttributeError('Kernel shape not found')
@@ -180,7 +175,6 @@ def get_strides_shape(node: NodeProto):
     for attribute in node.attribute:
         if attribute.name.lower() == 'strides':
             stride_shape = (attribute.ints[0], attribute.ints[1])
-            print('Strides shape:', stride_shape)
             return stride_shape
         
     raise AttributeError('Stride shape not found')
@@ -216,7 +210,6 @@ def calculate_output(input_shape: tuple, node: NodeProto, weights: dict, model: 
             if output_name in value_info.name:
                 last = value_info
         num_neurons = last.dims[0]
-        print(f"The number of neurons in the node is {num_neurons}")
         return input_shape[:-1] + (num_neurons,)
     
     elif node.op_type == "Reshape":
@@ -226,7 +219,6 @@ def calculate_output(input_shape: tuple, node: NodeProto, weights: dict, model: 
         flatten_dim = 1
         for dim in input_shape:
             flatten_dim *= dim
-        print(f"Flatten dim is {flatten_dim}")
 
         return (flatten_dim,)
     
@@ -269,12 +261,7 @@ def get_weights(model: ModelProto):
             onnx_extracted_weights_name = onnx_w.ListFields()[3][1]
             weights[onnx_extracted_weights_name] = numpy_helper.to_array(onnx_w)
 
-        #print('Found weight {0} with shape {1}.'.format(
-        #                onnx_extracted_weights_name,
-        #                weights[onnx_extracted_weights_name].shape))
-    
     weights_global = {key: value for key, value in weights.items() if 'ReadVariableOp' in key}
-    print('Weights global: ', weights_global.keys())
     return weights_global
 
 def get_layer_weights(name: str, weights: dict):
@@ -321,12 +308,8 @@ def transpile_Conv(node_name: str, input_shape: tuple, output_shape: tuple, weig
     for key, value in weights.items():
         if not 'bias' in key.lower():
             weights = value
-            print("Weights:", value.shape)
         else:
             bias = value
-
-    print("Weights:", weights)
-    print("Bias:", bias)
 
     conv = Component(node_name, templates['Conv2D'], [
         Signal('in', input_shape),
@@ -349,18 +332,12 @@ def transpile_Conv(node_name: str, input_shape: tuple, output_shape: tuple, weig
 
 def transpile_BatchNormalization(node_name: str, input_shape: tuple, output_shape: tuple, weights: dict, epsilon: float):
     ''' Transpile a BatchNormalization2D layer. '''
-    print('input_shape', input_shape)
     if len(input_shape) != 3:
         raise NotImplementedError('Only 2D inputs are supported')
     if len(weights) != 4:
         raise NotImplementedError('Only center=True and scale=True supported')
-    
-    for key, value in weights.items():
-        print(key, value)
 
     weights = list(weights.values())
-
-    print(weights)
 
     moving_mean = weights[0]
     moving_var = weights[1]
@@ -473,9 +450,6 @@ def transpile_MatMul(node_name: str, input_shape: tuple, output_shape: tuple, we
         else:
             bias = value
 
-    print("Weights:", weights)
-    print("Bias:", bias)
-
     dense = Component(node_name, templates['Dense'], [
         Signal('in', input_shape),
         Signal('weights', weights.shape, weights),
@@ -509,3 +483,12 @@ def transpile_Flatten(node_name: str, input_shape: tuple, output_shape: tuple):
         })
     
     return activation
+
+def print_circuit(circuit: Circuit):
+    for component in circuit.components:
+        print('Transpiled layer: ',  component.name)
+        for signal in component.inputs:
+            print('input:', signal.name, signal.shape)
+        for signal in component.outputs:
+            print('output:', signal.name, signal.shape)
+        print('\n-------------------------------------------------')
