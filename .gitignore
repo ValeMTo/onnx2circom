@@ -8,3 +8,5 @@ keras2circom/
 
 cifar-10-batches-py/
 
+
+__pycache__/
