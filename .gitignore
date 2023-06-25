@@ -12,3 +12,5 @@ cifar-10-batches-py/
 __pycache__/
 
 Testing.ipynb
+
+.vscode/
