@@ -142,7 +142,7 @@ def get_padding(node: NodeProto):
             if 'same' in attribute.s:
                 padding = 'same'
     return padding
-        
+  
 def get_dilation_rate(node: NodeProto):
     ''' Get the dilation rate of a node.'''
     for attribute in node.attribute:
@@ -182,9 +182,13 @@ def get_strides_shape(node: NodeProto):
 def get_filters(weights: dict):
     ''' Get the number of filters of a node.'''
     for key, value in weights.items():
-        if 'BiasAdd' in key:
-            nChannels = len(value)
-            return nChannels 
+        if 'bias' not in key.lower():
+            nChannels = value.shape[-1]
+            return nChannels
+
+
+    
+
 
     raise AttributeError('Number of channels not available')
     
@@ -227,8 +231,8 @@ def calculate_output(input_shape: tuple, node: NodeProto, weights: dict, model: 
         pool_height, pool_width = get_kernel_shape(node)
         stride_height, stride_width = get_strides_shape(node)
 
-        output_height = (input_height - pool_height + 1) / stride_height + 1
-        output_width = (input_width - pool_width + 1) / stride_width + 1
+        output_height = (input_height - pool_height) / stride_height + 1
+        output_width = (input_width - pool_width) / stride_width + 1
         output_channels = input_channels
 
         return (int(output_height), int(output_width), int(output_channels))
@@ -305,11 +309,15 @@ def transpile_Conv(node_name: str, input_shape: tuple, output_shape: tuple, weig
         layer.weights.append(np.zeros(layer.weights[0].shape[-1]))
     '''
 
+    bias = np.empty(0)
     for key, value in weights.items():
         if not 'bias' in key.lower():
             weights = value
         else:
             bias = value
+
+    if len(bias) == 0:
+        bias = np.zeros(weights[0].shape[-1])
 
     conv = Component(node_name, templates['Conv2D'], [
         Signal('in', input_shape),
@@ -449,6 +457,9 @@ def transpile_MatMul(node_name: str, input_shape: tuple, output_shape: tuple, we
             weights = value
         else:
             bias = value
+
+    if len(bias) == 0:
+        bias = np.zeros(weights[0].shape[-1])
 
     dense = Component(node_name, templates['Dense'], [
         Signal('in', input_shape),
