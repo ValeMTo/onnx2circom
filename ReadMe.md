@@ -1,26 +1,56 @@
-# Onnx to Circom
+# onnx2circom
+
+`onnx2circom` is a tool designed to convert ONNX models into Circom circuits. The tool relies on an external repository, `keras2circom` and `circomlib-ml`, for reach the circom circuit and component.
+
 ## Installation
+First, clone the `onnx2circom` repository:
+
+```
+git clone https://github.com/ValeMTo/onnx2circom
+```
+
+Then, install the dependencies. You can use pip:
+
+```
+pip install -r requirements.txt
+```
+
+If you use conda, you can also create a new environment with the following command:
+
+```
+conda env create -f environment.yml
+```
+
+`onnx2circom` also requires `keras2circom` to function properly.\
+Here's how you can install keras2circom:
+```
+git clone https://github.com/socathie/keras2circom
+```
+You may need to install additional dependencies for `keras2circom`. Refer to its own README file for specific installation instructions.
 
 ## Usage
+After installing `onnx2circom` and `keras2circom`, you can convert your ONNX models into Circom circuits using the following command:
 
-## Documentation
-### Model Generator
-This file likely contains code and documentation for generating machine learning models. It may include sections for data preparation, feature engineering, model selection, hyperparameter tuning, and evaluation.
-The dataset is random generated.
+```bash
+python main_converter.py <model_path> [-o <output_dir>] [-v] [--raw]
+```
 
-### Main
-It contains the central logic or orchestrates the execution of various modules and functions. It handles command-line arguments, coordinate the flow of execution, and interact with other parts of the application.
+For example, to transpile the model in `models/model_dense.onnx` into a circom circuit, you can run:
 
-### Model
-The circuit is initialised here. 
-Then, there is a call to transpile each node to a circom component
+```bash
+python main_converter.py models/model_dense.onnx
+```
 
-### Handler
-A request handler that responds to specific requests and performs certain actions based on the input data. Its main rule is of on the traslation of the nodes
+The output will be in the `output` directory.
 
-### Testing.ipynb
-It is based of the project. 
-It helps to define functions and understand how the onnx model is structured. It is used to implement and test functions at the beginning
+If you want to transpile the model into a circom circuit with `--verbose` output, i.e. command line print of inputs and output of each layer, you can run:
 
-### Circuit.circom & circuit.json
-Output examples of my translation
+```bash
+python main_converter.py models/model_dense.onnx -v
+```
+
+Moreover, if you want to transpile the model into a circom circuit with `--raw` output, i.e. no ArgMax at the end, you can run:
+
+```bash
+python main_converter.py models/model_dense.onnx --raw
+```
