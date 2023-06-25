@@ -17,4 +17,8 @@ class Model:
         onnx_model = load(self.filename)
         circuit = transpile(onnx_model)
         
-        return circuit
+        with open('circuit.json', 'w') as f:
+            f.write(circuit.to_json())
+            
+        with open('circuit.circom', 'w') as f:
+            f.write(circuit.to_circom())

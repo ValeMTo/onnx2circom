@@ -1,18 +1,22 @@
-from docopt import docopt
-
-
-""" Transpile a Keras model to a CIRCOM circuit.
+"""
 
 Usage:
-    main.py <model.onnx> -o <output>
+  main.py <model.onnx> 
+  main.py (-h | --help)
 
 Options:
+    -h --help                       Show this screen.
 
 """
 
+from docopt import docopt
+from model import Model
+
 def main():
-    args = docopt(__doc__)    
-    #call the handler
+    args = docopt(__doc__)
+    print(args)
+    Model(args['<model.onnx>']).create_circuit() 
+    
 
 
 if __name__ == "__main__":
