@@ -37,7 +37,7 @@ skip_ops =  [
 
 
 def init():
-    dir_parse('../keras2circom/node_modules/circomlib-ml/circuits/', skips=['util.circom', 'circomlib-matrix', 'circomlib', 'crypto'])
+    dir_parse('keras2circom/node_modules/circomlib-ml/circuits/', skips=['util.circom', 'circomlib-matrix', 'circomlib', 'crypto'])
 
 def check_available_ops(op: str, name: str) -> bool:
     ''' Check if the operation is supported by circom. '''
@@ -87,6 +87,10 @@ def transpile_node(input_shape: tuple, output_shape: tuple, node: NodeProto, wei
         node_name = extract_node_name(node).split('/')[1]
     else:
         node_name = extract_node_name(node)
+
+    print(f'Node: {node_name} - {node.op_type}')
+    for key, value in weights.items():
+        print(key)
 
     if node.op_type == 'Conv':
         kernel_shape = get_kernel_shape(node)
@@ -274,7 +278,7 @@ def get_layer_weights(name: str, weights: dict):
     layer_weights = {}
 
     for key, value in weights.items():
-        if name in key:
+        if name + '/' in key:
             layer_weights[key] = value
 
     for key, value in layer_weights.items():
@@ -449,8 +453,6 @@ def transpile_Softmax(node_name: str, input_shape: tuple, output_shape: tuple):
 
 def transpile_MatMul(node_name: str, input_shape: tuple, output_shape: tuple, weights: dict):
     ''' Transpile a Dense layer.'''
-    if len(weights) != 2:
-        raise AttributeError('Number of weights arrays is not equal 2 for the dense layer')
 
     for key, value in weights.items():
         if not 'bias' in key.lower():

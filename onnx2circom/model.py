@@ -1,7 +1,7 @@
 # Ref: https://github.com/socathie/keras2circom/blob/main/keras2circom/model.py
 
 from onnx import load
-from handler import transpile, print_circuit
+from onnx2circom.handler import transpile, print_circuit
 import os
 
 class Model:
