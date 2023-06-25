@@ -37,7 +37,7 @@ skip_ops =  [
 
 
 def init():
-    dir_parse('keras2circom/node_modules/circomlib-ml/circuits/', skips=['util.circom', 'circomlib-matrix', 'circomlib', 'crypto'])
+    dir_parse('../keras2circom/node_modules/circomlib-ml/circuits/', skips=['util.circom', 'circomlib-matrix', 'circomlib', 'crypto'])
 
 def check_available_ops(op: str, name: str) -> bool:
     ''' Check if the operation is supported by circom. '''
