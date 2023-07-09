@@ -33,6 +33,7 @@ skip_ops =  [
     'Add',
     'Gather',
     'ReduceProd', 
+    'Mul',
 ]
 
 
@@ -87,10 +88,6 @@ def transpile_node(input_shape: tuple, output_shape: tuple, node: NodeProto, wei
         node_name = extract_node_name(node).split('/')[1]
     else:
         node_name = extract_node_name(node)
-
-    print(f'Node: {node_name} - {node.op_type}')
-    for key, value in weights.items():
-        print(key)
 
     if node.op_type == 'Conv':
         kernel_shape = get_kernel_shape(node)
